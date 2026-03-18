@@ -1,5 +1,5 @@
 import { execSync, spawn } from 'child_process';
-import { ToolDefinition, ToolFunction } from '../../tools/types';
+import { ToolDefinition, ToolFunction } from '../../../tools/types';
 
 /**
  * 危险命令黑名单，拒绝执行
@@ -77,4 +77,3 @@ export const implementation: ToolFunction = async (args: {
     return `命令执行失败:\n${stderr || e.message}`;
   }
 };
-

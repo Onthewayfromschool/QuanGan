@@ -7,7 +7,7 @@ const DIVIDER = chalk.gray('─'.repeat(56));
  */
 export function printHeader(model: string): void {
   console.log('\n' + chalk.cyan('═'.repeat(56)));
-  console.log(chalk.bold.cyan('  🤖  Coding Agent'));
+  console.log(chalk.bold.cyan('  🤖  QuanGanGe · 全干哥'));
   console.log(chalk.gray(`  powered by ${model}`));
   console.log(chalk.cyan('═'.repeat(56)) + '\n');
 }

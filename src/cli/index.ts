@@ -6,6 +6,7 @@ import * as readline from 'readline';
 import { loadConfigFromEnv, getModelContextLimit } from '../config/llm-config';
 import { DashScopeClient } from '../llm/client';
 import { Agent } from '../agent/agent';
+import { ToolDefinition } from '../tools/types';
 import {
   printHeader,
   printSystem,
@@ -22,43 +23,111 @@ import {
   printTokenUsage,
   createSpinner,
 } from './display';
-import { ALL_CODING_TOOLS } from './tools';
-import { loadSession, saveSession, clearSession, getSessionFilePath } from './session-store';
+import { createCodingAgent } from '../agents/coding';
+import { createDailyAgent } from '../agents/daily';
+import { ALL_CODING_TOOLS } from '../agents/coding/tools';
+import { ALL_DAILY_TOOLS } from '../agents/daily/tools';
+import { loadSession, saveSession, clearSession } from './session-store';
 
 // ─── 初始化 ───────────────────────────────────────────────────────────────────
 
 const config = loadConfigFromEnv();
 const client = new DashScopeClient(config);
 const MODEL_MAX_TOKENS = getModelContextLimit(config.model);
+const CWD = process.cwd();
+
+// 子 Agent 工具调用的 TUI 回调（复用主界面的 display 函数）
+const subAgentCallbacks = {
+  onToolCall: (name: string, args: any) => printToolCall(name, args),
+  onToolResult: (_name: string, result: string) => printToolResult(result),
+};
+
+// ─── 工具定义：子 Agent 作为主 Agent 的两个工具 ──────────────────────────────
+
+const codingAgentToolDef: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'coding_agent',
+    description: '调用 Coding Agent 完成代码相关任务，例如：阅读/修改/创建代码文件、执行命令、搜索代码、调试程序等',
+    parameters: {
+      type: 'object',
+      properties: {
+        task: {
+          type: 'string',
+          description: '要完成的代码任务，请尽量详细描述需求和背景',
+        },
+      },
+      required: ['task'],
+    },
+  },
+};
+
+const dailyAgentToolDef: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'daily_agent',
+    description: '调用 Daily Agent 完成日常任务，例如：打开应用、打开网址/搜索、执行系统命令、回答知识性问题等',
+    parameters: {
+      type: 'object',
+      properties: {
+        task: {
+          type: 'string',
+          description: '要完成的日常任务，请尽量详细描述需求',
+        },
+      },
+      required: ['task'],
+    },
+  },
+};
+
+// ─── 主 Agent：全干哥 ─────────────────────────────────────────────────────────
 
 const agent = new Agent({
   client,
-  systemPrompt: `你是一个专业的 Coding Agent。你可以帮助用户阅读、创建、修改代码文件，执行命令，搜索代码等。
-在回答时请保持简洁清晰。当需要操作文件或执行命令时，直接使用工具完成，无需反复确认。
-当前工作目录: ${process.cwd()}`,
+  systemPrompt: `你是全干哥（QuanGanGe），一个全能智能助手。
+你拥有两个专属子 Agent，可以通过工具调用来完成不同类型的任务：
+- coding_agent：处理所有代码相关任务（读写文件、执行命令、代码搜索等）
+- daily_agent：处理日常任务（打开应用、网页搜索、系统命令、知识问答等）
+
+当用户提出需求时，分析任务类型并调用合适的子 Agent 完成任务。
+如果任务涉及多个领域，可以依次调用多个子 Agent。
+对于简单的聊天或问候，可以直接回答，无需调用子 Agent。
+当前工作目录: ${CWD}`,
   onToolCall: (name, args) => {
-    printToolCall(name, args);
+    // 子 Agent 被调用时，展示路由信息
+    if (name === 'coding_agent' || name === 'daily_agent') {
+      const label = name === 'coding_agent' ? '💻 Coding Agent' : '🌟 Daily Agent';
+      printToolCall(`${label} ← 路由到`, { task: args.task });
+    } else {
+      printToolCall(name, args);
+    }
   },
   onToolResult: (_name, result) => {
     printToolResult(result);
   },
   onCompressStart: () => {
-    // 直接打印提示行，等压缩完成后 onCompress 会打印结果
     process.stdout.write(`\n  ${'\x1b[33m'}⏳ 上下文过长，正在压缩历史对话...${'\x1b[0m'}`);
   },
   onCompress: (before, after) => {
-    // 清除上面那行，换成完成提示
     process.stdout.write('\r' + ' '.repeat(50) + '\r');
     printSystem(`♻️  上下文已自动压缩（${before} → ${after} 条消息），旧对话已生成摘要保留`);
   },
 });
 
-// 注册所有 coding 工具（readonly 标记决定 Plan 模式下是否可用）
-ALL_CODING_TOOLS.forEach(({ def, impl, readonly }) => agent.registerTool(def, impl, readonly));
+// 注册 coding_agent 工具：每次调用新建 CodingAgent 实例（无状态）
+agent.registerTool(codingAgentToolDef, async (args: { task: string }) => {
+  const codingAgent = createCodingAgent(client, CWD, subAgentCallbacks);
+  return await codingAgent.run(args.task);
+});
+
+// 注册 daily_agent 工具：每次调用新建 DailyAgent 实例（无状态）
+agent.registerTool(dailyAgentToolDef, async (args: { task: string }) => {
+  const dailyAgent = createDailyAgent(client, subAgentCallbacks);
+  return await dailyAgent.run(args.task);
+});
 
 // ─── 会话恢复 ─────────────────────────────────────────────────────────────────
 
-const CWD = process.cwd();
 const previousMessages = loadSession(CWD);
 if (previousMessages.length > 0) {
   agent.loadMessages(previousMessages);
@@ -96,9 +165,12 @@ function handleCommand(cmd: string): boolean {
     case '/history':
       printHistory(agent.getHistory());
       return true;
-    case '/tools':
-      printToolList(ALL_CODING_TOOLS.map(t => t.def.function.name));
+    case '/tools': {
+      const codingNames = ALL_CODING_TOOLS.map(t => `  [coding] ${t.def.function.name}`);
+      const dailyNames  = ALL_DAILY_TOOLS.map(t  => `  [daily]  ${t.def.function.name}`);
+      printToolList([...codingNames, ...dailyNames]);
       return true;
+    }
     case '/plan':
       isPlanMode = true;
       printModeSwitch(true);
@@ -125,8 +197,9 @@ function handleCommand(cmd: string): boolean {
 async function main() {
   // 打印欢迎界面
   printHeader(config.model);
-  printSystem('Coding Agent 已就绪！');
-  printSystem(`工作目录: ${process.cwd()}`);
+  printSystem('全干哥（QuanGanGe）已就绪！');
+  printSystem(`工作目录: ${CWD}`);
+  printSystem('子 Agent：💻 Coding Agent | 🌟 Daily Agent');
   if (previousMessages.length > 0) {
     const userCount = previousMessages.filter((m: any) => m.role === 'user').length;
     printSystem(`已恢复上次会话（${userCount} 轮对话），输入 /clear 可重新开始`);

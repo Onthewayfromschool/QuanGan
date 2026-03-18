@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { ToolDefinition, ToolFunction } from '../../tools/types';
+import { ToolDefinition, ToolFunction } from '../../../tools/types';
 
 /**
  * 遍历时跳过的目录
