@@ -33,8 +33,9 @@
 | `write_file` | 创建 / 覆盖写入文件 |
 | `edit_file` | 局部编辑文件，查找替换指定文本 |
 | `list_directory` | 列出目录结构 |
-| `execute_command` | 执行 shell 命令（支持后台启动服务） |
+| `execute_command` | 执行 shell 命令（支持后台启动服务）；对项目目录外的 rm/mv/cp 操作自动拦截并询问确认 |
 | `search_code` | 在代码库中搜索关键词（支持正则） |
+| `verify_code` | 对 TypeScript 项目运行 `tsc --noEmit` 编译检查，Agent 写完代码后自动验证类型正确性 |
 
 **🌟 Daily Agent** — 日常任务
 
@@ -192,7 +193,8 @@ skills/              # 自定义 Skill（dev-log-writer / developer-words-record
 - [x] Daily Agent 浏览器自动化（Playwright，持久化登录态）
 - [x] CLI `/` 命令快捷选择菜单
 - [x] ESC 中断 Agent 调用（AbortController 即时取消）
-- [ ] 代码执行沙箱验证（Agent 写完代码后自动编译/运行验证正确性）
+- [x] Coding Agent 路径安全守卫（危险命令越界自动拦截 + y/N 确认）
+- [x] `verify_code` 编译验证工具（tsc --noEmit，Agent 写完代码后自检）
 - [ ] 终端输出代码片段显示文件名 + 行号（便于快速定位和复制）
 - [ ] ReAct 推理过程可视化
 - [ ] 更多等你来提 Issue

@@ -134,7 +134,10 @@ const agent = new Agent({
 
 // 注册 coding_agent 工具：每次调用新建 CodingAgent 实例（无状态）
 agent.registerTool(codingAgentToolDef, async (args: { task: string }) => {
-  const codingAgent = createCodingAgent(client, CWD, subAgentCallbacks);
+  const codingAgent = createCodingAgent(client, CWD, {
+    ...subAgentCallbacks,
+    confirm: makeConfirmFn(),
+  });
   return await codingAgent.run(args.task);
 });
 
@@ -164,6 +167,29 @@ let currentSpinner: ReturnType<typeof createSpinner> | null = null;
 
 // readline 实例（在 handleCommand 中需要访问以更新 prompt）
 let rlInstance: ReturnType<typeof readline.createInterface> | null = null;
+
+/**
+ * 路径安全守卫：当 execute_command 检测到越界路径时，在终端询问用户 y/n
+ * 通过闭包捕获 rlInstance，在 main() 设置好 rl 之后调用时自动生效
+ */
+function makeConfirmFn(): (msg: string) => Promise<boolean> {
+  return (msg: string) =>
+    new Promise(resolve => {
+      const rl = rlInstance;
+      if (!rl) { resolve(false); return; }
+
+      rl.pause();
+      process.stdout.write(
+        `\n\x1b[33m⚠️  安全确认\x1b[0m\n${msg}\n\x1b[33m确认执行？\x1b[0m \x1b[1m[y/N]\x1b[0m `,
+      );
+      process.stdin.once('data', buf => {
+        const answer = buf.toString().trim().toLowerCase();
+        process.stdout.write('\n');
+        rl.resume();
+        resolve(answer === 'y' || answer === 'yes');
+      });
+    });
+}
 
 function updatePrompt() {
   if (!rlInstance) return;
