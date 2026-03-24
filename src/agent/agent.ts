@@ -19,8 +19,8 @@ export interface AgentConfig {
   compressionThreshold?: number;
   /** 压缩发生时的回调，可用于在 TUI 中展示提示 */
   onCompress?: (beforeCount: number, afterCount: number) => void;
-  /** 压缩开始前的回调，可用于在 TUI 中展示 loading 提示 */
-  onCompressStart?: () => void;
+  /** 压缩开始前的回调，可用于在 TUI 中展示 loading 提示；支持 async（会被 await） */
+  onCompressStart?: () => void | Promise<void>;
 }
 
 /**
@@ -126,8 +126,10 @@ export class Agent {
     const toKeep     = active.slice(active.length - KEEP_RECENT);
     const beforeCount = this.messages.length;
 
-    // 通知外部：压缩即将开始
-    this.onCompressStart?.();
+    // 通知外部：压缩即将开始（支持 async，如记忆系统更新）
+    if (this.onCompressStart) {
+      await this.onCompressStart();
+    }
 
     // 调用大模型生成摘要
     const summaryPrompt = toCompress

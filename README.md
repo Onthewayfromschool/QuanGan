@@ -25,6 +25,14 @@
    └─ daily_agent(task)  → Daily Agent  → 返回结果
 ```
 
+**🧠 小玉（主 Agent）** — 记忆工具
+
+| 工具 | 能做什么 |
+|------|----------|
+| `recall_memory` | 检索核心记忆 + 最近 7 天日常记忆，涉及具体项目或历史决定时主动调用 |
+| `update_life_memory` | 将当前会话摘要保存到今日 lifeMemory 文件（上下文压缩时自动触发） |
+| `consolidate_core_memory` | LLM 分析近 14 天日常记忆，归纳重复主题，更新核心记忆 |
+
 **💻 Coding Agent** — 代码相关任务
 
 | 工具 | 能做什么 |
@@ -142,6 +150,7 @@ src/
 ├── agents/
 │   ├── coding/      # Coding Agent 工厂 + 工具（read/write/exec 等）
 │   └── daily/       # Daily Agent 工厂 + 工具（open_app/open_url/run_shell/run_applescript/browser_action）
+├── memory/          # 记忆系统（memory-store.ts 文件 I/O、tools.ts 工具定义）
 ├── voice/           # 语音模块（ASR 识别 + TTS 朗读 + 录音）
 ├── tools/           # 工具类型定义
 ├── cli/
@@ -160,6 +169,7 @@ bin/
 docs/                # 开发日志
 skills/              # 自定义 Skill（dev-log-writer / developer-words-recorder / daily-record）
 .sessions/           # 会话存档（自动生成，已 gitignore）
+.memory/             # 记忆存档（自动生成，已 gitignore）
 ```
 
 ---
@@ -197,6 +207,7 @@ skills/              # 自定义 Skill（dev-log-writer / developer-words-record
 - [x] `verify_code` 编译验证工具（tsc --noEmit，Agent 写完代码后自检）
 - [x] `/clear` 归档化（旧对话带时间戳归档保留，不再直接删除）
 - [x] Daily Agent 提示词策略化（移除内联实现细节，提示词只管优先级）
+- [x] Agent 两层记忆系统（coreMemory 长期记忆 + lifeMemory 每日日记，压缩时自动更新）
 - [ ] 终端输出代码片段显示文件名 + 行号（便于快速定位和复制）
 - [ ] ReAct 推理过程可视化
 - [ ] 更多等你来提 Issue

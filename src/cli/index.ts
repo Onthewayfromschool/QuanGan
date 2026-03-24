@@ -36,6 +36,7 @@ import { ALL_CODING_TOOLS } from '../agents/coding/tools';
 import { ALL_DAILY_TOOLS } from '../agents/daily/tools';
 import { loadSession, saveSession, clearSession } from './session-store';
 import { startCommandPicker } from './command-picker';
+import { createMemoryTools, getCoreMemory, appendLifeMemory, createMemoryToolImpls } from '../memory';
 
 // ─── 初始化 ───────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,18 @@ const config = loadConfigFromEnv();
 const client = new DashScopeClient(config);
 const MODEL_MAX_TOKENS = getModelContextLimit(config.model);
 const CWD = process.cwd();
+
+// ─── 记忆系统初始化 ──────────────────────────────────────────────────────────
+
+// 读取 coreMemory，启动时注入到系统提示词
+const _initCoreMemory = getCoreMemory(CWD);
+const _memoryContext =
+  _initCoreMemory.memories.length > 0
+    ? `\n\n## 你的核心记忆\n${_initCoreMemory.memories.map(m => `- [强度:${m.reinforceCount}] ${m.content}`).join('\n')}`
+    : '';
+
+// 每次压缩触发 lifeMemory 更新；每 3 次触发一次核心记忆整合
+let _lifeMemoryUpdateCount = 0;
 
 // 子 Agent 工具调用的 TUI 回调（复用主界面的 display 函数）
 const subAgentCallbacks = {
@@ -88,6 +101,50 @@ const dailyAgentToolDef: ToolDefinition = {
   },
 };
 
+// ─── lifeMemory 异步更新（在压缩时触发） ────────────────────────────────────
+
+/**
+ * 将当前会话历史摘要后写入 lifeMemory。
+ * 由 onCompressStart 异步触发，静默失败（不影响主流程）。
+ */
+async function updateLifeMemoryAsync(): Promise<void> {
+  try {
+    // 获取最近未归档的主助手消息（排除 system 消息）
+    const history = agent
+      .getHistory()
+      .filter(m => !m._archived && m.role !== 'system')
+      .map(m => {
+        const role = m.role === 'user' ? '用户' : 'Agent';
+        const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+        return `[${role}]: ${content.slice(0, 400)}`;
+      })
+      .join('\n\n');
+
+    if (!history.trim()) return;
+
+    const summary = await client.ask(
+      `请将以下对话提炼为简洁的日常记忆摘要（150字以内），重点记录：做了什么、讨论了什么决定、遇到什么问题及如何解决：\n\n${history}`,
+      '你是记忆整合助手，请用简洁中文生成摘要。',
+    );
+
+    const theme = await client.ask(
+      `根据以下摘要，提取一个简短的主题词（3-8字，如“Agent开发”、“音乐播放调试”）：\n\n${summary}`,
+      '只输出主题词，不要其他内容。',
+    );
+
+    appendLifeMemory(CWD, theme.trim(), summary);
+
+    _lifeMemoryUpdateCount++;
+    // 每 3 次压缩就触发一次核心记忆整合
+    if (_lifeMemoryUpdateCount % 3 === 0) {
+      const { consolidateImpl } = createMemoryToolImpls(client, CWD);
+      await consolidateImpl();
+    }
+  } catch {
+    // 静默失败，不影响主流程
+  }
+}
+
 // ─── 主 Agent：小玉 ─────────────────────────────────────────────────────
 
 const agent = new Agent({
@@ -108,9 +165,16 @@ const agent = new Agent({
 - coding_agent：处理代码相关任务（读写文件、执行命令、代码搜索等）
 - daily_agent：处理日常任务（打开应用、网页搜索、系统命令、知识问答等）
 
-根据权哥的需求分析任务类型并调用合适的助手完成。
+��据权哥的需求分析任务类型并调用合适的助手完成。
 如果是简单的聊天或问候，直接回答就好，无需调助手。
-当前工作目录: ${CWD}`,
+当前工作目录: ${CWD}
+
+## 记忆使用指南
+你拥有 recall_memory 工具可以检索记忆，遇到以下情况时主动调用：
+- 问题涉及具体项目、人物、过去的决定
+- 权哥说"之前"、"上次"、"你还记得"
+- 需要了解权哥偏好才能更好回答
+闲聊、简单问答、纯技术问题无需检索记忆。${_memoryContext}`,
   onToolCall: (name, args) => {
     // 子 Agent 被调用时，展示路由信息
     if (name === 'coding_agent' || name === 'daily_agent') {
@@ -123,8 +187,10 @@ const agent = new Agent({
   onToolResult: (_name, result) => {
     printToolResult(result);
   },
-  onCompressStart: () => {
-    process.stdout.write(`\n  ${'\x1b[33m'}⏳ 上下文过长，正在压缩历史对话...${'\x1b[0m'}`);
+  onCompressStart: async () => {
+    process.stdout.write(`\n  ${'\'\x1b[33m\''}⏳ 上下文过长，正在压缩历史对话...${'\x1b[0m'}`);
+    // 异步更新 lifeMemory，不阻塞压缩流程
+    updateLifeMemoryAsync().catch(() => {});
   },
   onCompress: (before, after) => {
     process.stdout.write('\r' + ' '.repeat(50) + '\r');
@@ -146,6 +212,10 @@ agent.registerTool(dailyAgentToolDef, async (args: { task: string }) => {
   const dailyAgent = createDailyAgent(client, subAgentCallbacks);
   return await dailyAgent.run(args.task);
 });
+
+// 注册记忆工具：recall_memory / update_life_memory / consolidate_core_memory
+const memoryTools = createMemoryTools(client, CWD);
+memoryTools.forEach(({ def, impl, readonly }) => agent.registerTool(def, impl, readonly));
 
 // ─── 会话恢复 ─────────────────────────────────────────────────────────────────
 
