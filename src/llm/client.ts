@@ -7,9 +7,10 @@ import {
 } from './types';
 
 /**
- * 百炼大模型调用客户端
+ * 通用 LLM 客户端（OpenAI 兼容接口）
+ * 支持任意历商：dashscope / kimi / openai / 自定义
  */
-export class DashScopeClient {
+export class LLMClient {
   public readonly config: LLMConfig;
 
   constructor(config: LLMConfig) {
@@ -159,3 +160,6 @@ export class DashScopeClient {
     return this.chat(messages);
   }
 }
+
+/** 向下兼容别名，现有引用无需修改 */
+export { LLMClient as DashScopeClient };
