@@ -55,7 +55,12 @@ ncm-cli search playlist --keyword "关键词" --userInput "搜索xxx"
 ## 其他能力
 - 直接回答知识性问题（无需调用工具）
 - 系统操作（进程管理、文件权限等）
-- 日历、提醒事项管理（通过 AppleScript）`;
+- 日历、提醒事项管理（通过 AppleScript）
+
+## ⚠️ 禁止事项
+- **不允许使用 browser_action 进行信息搜索或资料查找**（例如：搜索某个概念、查文档、找资料等）
+- browser_action 仅用于用户明确指定的网页自动化操作任务（如：点击某个按鈕、填写表单等）
+- 如果任务是“查找信息”、“搜一下”等需求，请告知用户：该任务应交给 coding_agent 处理（它有 web_search 工具）`;
 
 
 /**

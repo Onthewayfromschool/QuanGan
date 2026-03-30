@@ -5,6 +5,8 @@ import * as listDirectory from './list-directory.js';
 import * as executeCommand from './execute-command.js';
 import * as searchCode from './search-code.js';
 import * as verifyCode from './verify-code.js';
+import * as webSearch from './web-search.js';
+import * as readUrl from './read-url.js';
 
 /**
  * 工厂函数：创建完整的 coding 工具集
@@ -23,6 +25,8 @@ export function createAllCodingTools(
     { def: executeCommand.definition, impl: executeCommand.createImplementation(workDir, confirmFn), readonly: false },
     { def: searchCode.definition,     impl: searchCode.implementation,                            readonly: true  },
     { def: verifyCode.definition,     impl: verifyCode.implementation,                            readonly: false },
+    { def: webSearch.definition,       impl: webSearch.implementation,                             readonly: true  },
+    { def: readUrl.definition,         impl: readUrl.implementation,                               readonly: true  },
   ];
 }
 
@@ -34,5 +38,5 @@ export function createAllCodingTools(
 export const ALL_CODING_TOOLS = createAllCodingTools(process.cwd());
 
 // 也单独导出，方便按需引用
-export { readFile, writeFile, editFile, listDirectory, executeCommand, searchCode, verifyCode };
+export { readFile, writeFile, editFile, listDirectory, executeCommand, searchCode, verifyCode, webSearch, readUrl };
 

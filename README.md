@@ -45,6 +45,8 @@
 | `execute_command` | 执行 shell 命令（支持后台启动服务）；对项目目录外的 rm/mv/cp 操作自动拦截并询问确认 |
 | `search_code` | 在代码库中搜索关键词（支持正则） |
 | `verify_code` | 对 TypeScript 项目运行 `tsc --noEmit` 编译检查，Agent 写完代码后自动验证类型正确性 |
+| `web_search` | 联网搜索（Tavily API），返回 AI 生成摘要 + 结构化结果列表，支持 basic/advanced 搜索深度 |
+| `read_url` | 读取任意网页全文（Jina Reader），自动转换为干净 Markdown，无需 API Key |
 
 **🌟 Daily Agent** — 日常任务
 
@@ -152,7 +154,17 @@ npm run voice-design
 npm run dev
 ```
 
-### 4. 全局命令（可选）
+### 4. 配置联网搜索（可选）
+
+去 [app.tavily.com](https://app.tavily.com) 注册，免费 1000 次/月，拿到 Key 后写入 `.env`：
+
+```env
+TAVILY_API_KEY=tvly-你的密钥
+```
+
+> `read_url`（Jina Reader）无需 API Key，直接可用
+
+### 5. 全局命令（可选）
 
 配置后可在任意目录使用 `quangan` 命令：
 
@@ -239,6 +251,7 @@ skills/              # 自定义 Skill（dev-log-writer / developer-words-record
 - [x] `ILLMClient` 统一接口抽象，支持 OpenAI 兼容和 Anthropic 协议双层客户端
 - [x] `/provider` 命令：TUI 一键切换 Provider，配置即时持久化到 `.env`
 - [x] CLI UI 迁移至 Ink + Clack（React 组件化 TUI，`<Static>` 历史区 + 动态底部，输入框圆角边框）
+- [x] Coding Agent 联网搜索（Tavily API `web_search` + Jina Reader `read_url`，信息检索路由加固）
 - [ ] 终端输出代码片段显示文件名 + 行号（便于快速定位和复制）
 - [ ] ReAct 推理过程可视化
 - [ ] 更多等你来提 Issue
@@ -253,6 +266,7 @@ skills/              # 自定义 Skill（dev-log-writer / developer-words-record
 - Qwen3-ASR-Flash（语音识别）
 - 百炼 CosyVoice（cosyvoice-v3.5-plus，WebSocket TTS 语音合成）
 - **Ink**（React-based 终端 UI，组件化渲染）+ **Clack**（交互式流程向导）
+- **Tavily API**（联网搜索，AI 生成摘要）+ **Jina Reader**（网页全文转 Markdown，零 Key）
 - Node.js 内置 readline / child_process
 - sox（录音，需单独安装）
 

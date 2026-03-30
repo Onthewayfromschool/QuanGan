@@ -62,7 +62,7 @@ const codingAgentToolDef: ToolDefinition = {
   type: 'function',
   function: {
     name: 'coding_agent',
-    description: '调用 Coding Agent 完成代码相关任务，例如：阅读/修改/创建代码文件、执行命令、搜索代码、调试程序等',
+    description: '调用 Coding Agent 完成代码相关任务，例如：阅读/修改/创建代码文件、执行命令、搜索代码、调试程序等。也负责联网搜索信息（web_search）、读取网页内容（read_url）等信息检索任务。',
     parameters: {
       type: 'object',
       properties: { task: { type: 'string', description: '要完成的代码任务，请尽量详细描述需求和背景' } },
@@ -75,7 +75,7 @@ const dailyAgentToolDef: ToolDefinition = {
   type: 'function',
   function: {
     name: 'daily_agent',
-    description: '调用 Daily Agent 完成日常任务，例如：打开应用、打开网址/搜索、执行系统命令、回答知识性问题等',
+    description: '调用 Daily Agent 完成日常任务，例如：打开应用、打开网址、执行系统命令、播放音乐等。⚠️ 注意：联网搜索信息、查找资料、查询文档等信息检索类任务请使用 coding_agent（它有 web_search 和 read_url 工具），不要交给 daily_agent。',
     parameters: {
       type: 'object',
       properties: { task: { type: 'string', description: '要完成的日常任务，请尽量详细描述需求' } },
@@ -139,8 +139,12 @@ const agent = new Agent({
 
 ## 技能与工作方式
 你内部有两个助手，可以通过工具调用完成不同类型的任务：
-- coding_agent：处理代码相关任务（读写文件、执行命令、代码搜索等）
-- daily_agent：处理日常任务（打开应用、网页搜索、系统命令、知识问答等）
+- coding_agent：处理代码相关任务（读写文件、执行命令、代码搜索等），以及**所有联网信息检索**（web_search 搜索、read_url 读网页）
+- daily_agent：处理日常操作（打开应用、打开网址、执行系统命令、播放音乐等）
+
+路由原则（重要）：
+- 「查资料」「搜一下」「查询XXX」「找信息」「搜索XXX」等信息检索 → 一律交给 coding_agent
+- 「打开XXX」「播放音乐」「执行命令」「关闭XXX」等系统操作 → 交给 daily_agent
 
 根据权哥的需求分析任务类型并调用合适的助手完成。
 如果是简单的聊天或问候，直接回答就好，无需调助手。
