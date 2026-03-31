@@ -210,9 +210,9 @@ export { LLMClient as DashScopeClient };
  * protocol=anthropic → AnthropicClient
  * 其他 → LLMClient（OpenAI 兼容）
  */
-export function createLLMClient(config: import('../config/llm-config.js').LLMConfig): import('./types.js').ILLMClient {
+export async function createLLMClient(config: import('../config/llm-config.js').LLMConfig): Promise<import('./types.js').ILLMClient> {
   if (config.protocol === 'anthropic') {
-    const { AnthropicClient } = require('./anthropic-client');
+    const { AnthropicClient } = await import('./anthropic-client.js');
     return new AnthropicClient(config);
   }
   return new LLMClient(config);

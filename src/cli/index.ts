@@ -28,7 +28,7 @@ import { ProviderItem } from './ui/pickers/ProviderPicker.js';
 // ─── 初始化 ───────────────────────────────────────────────────────────────────
 
 let config = loadConfigFromEnv();
-let client = createLLMClient(config);
+let client = await createLLMClient(config);
 let MODEL_MAX_TOKENS = getModelContextLimit(config.model);
 const CWD = process.cwd();
 
@@ -227,7 +227,7 @@ function persistEnv(key: string, value: string): void {
   } catch { /* 写入失败静默忽略 */ }
 }
 
-function switchProvider(name: string): void {
+async function switchProvider(name: string): Promise<void> {
   const preset = PROVIDERS[name];
   if (!preset) {
     store.push({ type: 'error', content: `未知供应商: ${name}，支持：${Object.keys(PROVIDERS).join(', ')}` });
@@ -241,7 +241,7 @@ function switchProvider(name: string): void {
   }
   const newModel = process.env[`${prefix}_MODEL`] || preset.defaultModel;
   config = { provider: name, apiKey, baseURL: preset.baseURL, model: newModel, headers: preset.headers, protocol: preset.protocol };
-  client = createLLMClient(config);
+  client = await createLLMClient(config);
   MODEL_MAX_TOKENS = getModelContextLimit(config.model);
   agent.updateClient(client);
   persistEnv('LLM_PROVIDER', name);
@@ -446,12 +446,12 @@ const appCallbacks: AppCallbacks = {
     switchProvider(providerName);
     store.push({ type: 'system', content: '✅ 配置已保存到 .env' });
   },
-  onChangeModel: (newModel) => {
+  onChangeModel: async (newModel) => {
     const envPrefix = config.provider.replace(/-/g, '_').toUpperCase();
     process.env[`${envPrefix}_MODEL`] = newModel;
     persistEnv(`${envPrefix}_MODEL`, newModel);
     config = { ...config, model: newModel };
-    client = createLLMClient(config);
+    client = await createLLMClient(config);
     MODEL_MAX_TOKENS = getModelContextLimit(config.model);
     agent.updateClient(client);
     const newMemoryTools = createMemoryTools(client, MEMORY_BASE_DIR);
