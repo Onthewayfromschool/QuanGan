@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { ToolDefinition, ToolFunction } from '../../../tools/types.js';
+import { ToolDefinition, ToolFunction } from './types.js';
 
 /**
  * 工具：打开 macOS 应用程序

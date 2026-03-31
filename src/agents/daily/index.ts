@@ -1,18 +1,21 @@
 import { Agent } from '../../agent/agent.js';
 import { ILLMClient } from '../../llm/types.js';
-import { ALL_DAILY_TOOLS } from './tools/index.js';
+import { createGlobalToolRegistry, DAILY_AGENT_DENY, registerWithDenyList } from '../../tools/registry.js';
 
 const DAILY_SYSTEM_PROMPT = `你是一个日常任务执行助手，擅长帮用户完成各种日常操作。
 
 ## 核心原则
 直接调用工具执行操作，不要只给建议或脚本让用户自己去运行。
 
-## 可用工具
+## 可用工具（部分）
 - open_app：打开 macOS 应用程序
 - open_url：在浏览器中打开网址
 - run_shell：执行 shell 命令
 - run_applescript：用 AppleScript 控制任意 macOS 应用（UI 自动化）
 - browser_action：用 Playwright 控制浏览器，自动化操作网页
+- web_search：联网搜索信息（Tavily API），查资料、找答案直接用
+- read_url：读取网页全文，获取具体页面内容时使用
+- read_file / list_directory：读取文件和目录（只读）
 
 ## 🎵 音乐需求：优先使用网易云 ncm-cli
 
@@ -57,21 +60,25 @@ ncm-cli search playlist --keyword "关键词" --userInput "搜索xxx"
 - 系统操作（进程管理、文件权限等）
 - 日历、提醒事项管理（通过 AppleScript）
 
-## ⚠️ 禁止事项
-- **不允许使用 browser_action 进行信息搜索或资料查找**（例如：搜索某个概念、查文档、找资料等）
-- browser_action 仅用于用户明确指定的网页自动化操作任务（如：点击某个按鈕、填写表单等）
-- 如果任务是“查找信息”、“搜一下”等需求，请告知用户：该任务应交给 coding_agent 处理（它有 web_search 工具）`;
+## ⚠️ browser_action 注意事项
+- browser_action 仅用于用户明确指定的网页自动化操作任务（如：点击某个按钮、填写表单等）
+- 信息检索/查资料请优先使用 web_search 或 read_url，更快更省`;
 
 
 /**
  * DailyAgent 工厂函数
  * 创建一个专注于日常任务的子 Agent 实例（无状态，每次调用新建）
  *
+ * 工具策略：从全局注册表中取全集，按 DAILY_AGENT_DENY 排除代码写入/编译类工具。
+ * Daily Agent 现在可以直接使用 web_search / read_url，无需路由到 coding_agent。
+ *
  * @param client     LLM 客户端
+ * @param workDir    当前工作目录（只读工具需要，如 list_directory）
  * @param callbacks  可选：工具调用/结果的 TUI 回调，供主 Agent 界面展示
  */
 export function createDailyAgent(
     client: ILLMClient,
+  workDir: string,
   callbacks?: {
     onToolCall?: (name: string, args: any) => void;
     onToolResult?: (name: string, result: string) => void;
@@ -84,9 +91,10 @@ export function createDailyAgent(
     onToolResult: callbacks?.onToolResult,
   });
 
-  // 注册所有 daily 工具
-  ALL_DAILY_TOOLS.forEach(({ def, impl }) =>
-    agent.registerTool(def, impl),
+  // 从全局注册表取全集，按黑名单排除代码写入/编译工具
+  const registry = createGlobalToolRegistry(workDir);
+  registerWithDenyList(registry, DAILY_AGENT_DENY, (def, impl, readonly) =>
+    agent.registerTool(def, impl, readonly),
   );
 
   return agent;

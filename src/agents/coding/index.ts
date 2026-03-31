@@ -1,13 +1,16 @@
 import { Agent } from '../../agent/agent.js';
 import { ILLMClient } from '../../llm/types.js';
-import { createAllCodingTools } from './tools/index.js';
+import { createGlobalToolRegistry, CODING_AGENT_DENY, registerWithDenyList } from '../../tools/registry.js';
 
 /**
  * CodingAgent 工厂函数
  * 创建一个专注于代码任务的子 Agent 实例（无状态，每次调用新建）
  *
+ * 工具策略：从全局注册表中取全集，按 CODING_AGENT_DENY 排除系统/UI 操控类工具。
+ * 即使路由偏差，Coding Agent 仍能使用 web_search / read_url 等检索工具。
+ *
  * @param client     LLM 客户端
- * @param workDir    当前工作目录，注入到系统提示中
+ * @param workDir    当前工作目录，注入到系统提示 + execute_command 路径守卫
  * @param callbacks  可选：工具调用/结果的 TUI 回调，以及路径安全守卫的 confirm 函数
  */
 export function createCodingAgent(
@@ -31,9 +34,9 @@ export function createCodingAgent(
     onToolResult: callbacks?.onToolResult,
   });
 
-  // 使用工厂函数创建工具集，注入 workDir 和 confirm 回调
-  const tools = createAllCodingTools(workDir, callbacks?.confirm);
-  tools.forEach(({ def, impl, readonly }) =>
+  // 从全局注册表取全集，按黑名单排除 UI/系统操控类工具
+  const registry = createGlobalToolRegistry(workDir, callbacks?.confirm);
+  registerWithDenyList(registry, CODING_AGENT_DENY, (def, impl, readonly) =>
     agent.registerTool(def, impl, readonly),
   );
 

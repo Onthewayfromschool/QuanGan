@@ -1,4 +1,4 @@
-import { ToolDefinition, ToolFunction } from '../../../tools/types.js';
+import { ToolDefinition, ToolFunction } from './types.js';
 
 /**
  * 工具：使用 Jina Reader 读取网页全文内容

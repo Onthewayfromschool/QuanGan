@@ -187,11 +187,11 @@ src/
 ├── llm/             # 大模型客户端
 ├── agent/           # Agent 基类（通用 Function Calling 循环）
 ├── agents/
-│   ├── coding/      # Coding Agent 工厂 + 工具（read/write/exec 等）
-│   └── daily/       # Daily Agent 工厂 + 工具（open_app/open_url/run_shell/run_applescript/browser_action）
+│   ├── coding/      # Coding Agent 工厂（deny list 权限控制）
+│   └── daily/       # Daily Agent 工厂（deny list 权限控制）
+├── tools/           # 全局工具池（所有工具统一注册，14 个工具 + registry.ts + types.ts）
 ├── memory/          # 记忆系统（memory-store.ts 文件 I/O、tools.ts 工具定义）
 ├── voice/           # 语音模块（ASR 识别 + TTS 朗读 + 录音 + voice-design 音色定制）
-├── tools/           # 工具类型定义
 ├── cli/
 │   ├── session-store.ts  # 会话持久化（JSON 文件读写）
 │   ├── index.ts          # 小玉主 Agent 入口
@@ -215,17 +215,15 @@ skills/              # 自定义 Skill（dev-log-writer / developer-words-record
 
 ## 如何扩展
 
-**添加 Coding 工具：**
-1. 在 `src/agents/coding/tools/` 下新建文件，导出 `definition` 和 `implementation`
-2. 在 `src/agents/coding/tools/index.ts` 里追加到 `ALL_CODING_TOOLS`
-
-**添加 Daily 工具：**
-1. 在 `src/agents/daily/tools/` 下新建文件
-2. 在 `src/agents/daily/tools/index.ts` 里追加到 `ALL_DAILY_TOOLS`
+**添加新工具：**
+1. 在 `src/tools/` 下新建文件，导出 `definition` 和 `implementation`
+2. 在 `src/tools/registry.ts` 的 `createGlobalToolRegistry()` 中注册新工具
+3. 如需限制某 Agent 不能使用该工具，将工具名加入对应的 deny list（`CODING_AGENT_DENY` 或 `DAILY_AGENT_DENY`）
 
 **添加新的子 Agent：**
 1. 在 `src/agents/` 下新建目录，创建工厂函数 `createXxxAgent()`
-2. 在 `src/cli/index.ts` 里将新 Agent 注册为小玉的工具
+2. 调用 `createGlobalToolRegistry()` + `registerWithDenyList()` 注入工具（按需设置 deny list）
+3. 在 `src/cli/index.ts` 里将新 Agent 注册为小玉的工具
 
 ---
 

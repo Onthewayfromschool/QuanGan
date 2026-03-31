@@ -1,5 +1,5 @@
 import { execSync, spawn } from 'child_process';
-import { ToolDefinition, ToolFunction } from '../../../tools/types.js';
+import { ToolDefinition, ToolFunction } from './types.js';
 
 /**
  * 危险命令黑名单

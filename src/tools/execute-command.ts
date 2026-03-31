@@ -1,6 +1,6 @@
 import { execSync, spawn } from 'child_process';
 import path from 'path';
-import { ToolDefinition, ToolFunction } from '../../../tools/types.js';
+import { ToolDefinition, ToolFunction } from './types.js';
 
 /**
  * 硬性黑名单：无论路径在哪里都直接拒绝

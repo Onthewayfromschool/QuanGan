@@ -1,4 +1,4 @@
-import { ToolDefinition, ToolFunction } from '../../../tools/types.js';
+import { ToolDefinition, ToolFunction } from './types.js';
 
 /**
  * Tavily 搜索结果单条

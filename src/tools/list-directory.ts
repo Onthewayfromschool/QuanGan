@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { ToolDefinition, ToolFunction } from '../../../tools/types.js';
+import { ToolDefinition, ToolFunction } from './types.js';
 
 /**
  * 工具：列出目录内容

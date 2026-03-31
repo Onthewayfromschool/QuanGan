@@ -14,8 +14,7 @@ import { Agent } from '../agent/agent.js';
 import { ToolDefinition } from '../tools/types.js';
 import { createCodingAgent } from '../agents/coding/index.js';
 import { createDailyAgent } from '../agents/daily/index.js';
-import { ALL_CODING_TOOLS } from '../agents/coding/tools/index.js';
-import { ALL_DAILY_TOOLS } from '../agents/daily/tools/index.js';
+import { createGlobalToolRegistry } from '../tools/registry.js';
 import { loadSession, saveSession, clearSession } from './session-store.js';
 import { createMemoryTools, getCoreMemory, appendLifeMemory, createMemoryToolImpls, MEMORY_BASE_DIR } from '../memory/index.js';
 import { recordUntilSilence, cleanupAudioFile } from '../voice/recorder.js';
@@ -189,7 +188,7 @@ agent.registerTool(codingAgentToolDef, async (args: { task: string }) => {
 });
 
 agent.registerTool(dailyAgentToolDef, async (args: { task: string }) => {
-  const dailyAgent = createDailyAgent(client, subAgentCallbacks);
+  const dailyAgent = createDailyAgent(client, CWD, subAgentCallbacks);
   return await dailyAgent.run(args.task);
 });
 
@@ -329,11 +328,10 @@ function handleCommand(cmd: string): void {
       break;
     }
     case '/tools': {
-      const names = [
-        ...ALL_CODING_TOOLS.map((t: any) => `[coding] ${t.def.function.name}`),
-        ...ALL_DAILY_TOOLS.map((t: any) => `[daily]  ${t.def.function.name}`),
-      ];
-      names.forEach(n => store.push({ type: 'system', content: `  • ${n}` }));
+      const registry = createGlobalToolRegistry(CWD);
+      const names: string[] = [];
+      registry.forEach(({ def }) => names.push(`  • ${def.function.name}`));
+      names.forEach(n => store.push({ type: 'system', content: n }));
       break;
     }
     case '/plan':
