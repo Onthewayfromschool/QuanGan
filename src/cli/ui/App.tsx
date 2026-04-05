@@ -3,7 +3,7 @@ import { Box, Text, useInput, Static } from 'ink';
 import TextInput from 'ink-text-input';
 
 import { ChatStore } from './store.js';
-import { ChatEvent, AppMode } from './types.js';
+import { ChatEvent, AppMode, PianoState } from './types.js';
 import { Header } from './components/Header.js';
 import { ChatMessage } from './components/ChatMessage.js';
 import { ToolCall } from './components/ToolCall.js';
@@ -13,6 +13,7 @@ import { Spinner } from './components/Spinner.js';
 import { TokenBar } from './components/TokenBar.js';
 import { CommandPicker } from './pickers/CommandPicker.js';
 import { ProviderPicker, ProviderItem } from './pickers/ProviderPicker.js';
+import { Piano } from './components/Piano.js';
 
 // ── 单条事件渲染 ──────────────────────────────────────────────────────────────
 function EventItem({ event }: { event: ChatEvent }) {
@@ -60,6 +61,7 @@ function InputArea({ mode, isRunning, isRecording, onSubmit, onAbort, onSlash }:
     if (key.escape && isRunning) {
       onAbort();
     }
+    // voice 模式下 Enter 触发录音（但不在这里处理，交给 TextInput 的 onSubmit，避免重复）
   });
 
   const handleChange = (val: string) => {
@@ -74,7 +76,9 @@ function InputArea({ mode, isRunning, isRecording, onSubmit, onAbort, onSlash }:
   const handleSubmit = (val: string) => {
     const trimmed = val.trim();
     setValue('');
-    if (trimmed) onSubmit(trimmed);
+    console.log(`[InputArea] handleSubmit called with: "${trimmed}" (mode=${mode})`);
+    // voice 模式下空 Enter 也需要透传（触发录音）
+    if (trimmed || mode === 'voice') onSubmit(trimmed);
   };
 
   if (isRunning) {
@@ -106,7 +110,7 @@ function InputArea({ mode, isRunning, isRecording, onSubmit, onAbort, onSlash }:
           value={value}
           onChange={handleChange}
           onSubmit={handleSubmit}
-          focus={!isRunning}
+          focus={true}
         />
       </Box>
       <Text dimColor>{hint}</Text>
@@ -135,16 +139,29 @@ interface AppProps {
   callbacks: AppCallbacks;
 }
 
-export function App({ store, model, mode, setMode, callbacks }: AppProps) {
+export function App({ store, model, mode: initialMode, setMode, callbacks }: AppProps) {
   const [events, setEvents]           = useState<ChatEvent[]>(() => store.getAll());
+  const [mode, setModeState]          = useState<AppMode>(initialMode);
   const [isRunning, setIsRunning]     = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showCmd, setShowCmd]         = useState(false);
   const [showProvider, setShowProvider] = useState(false);
+  const [pianoState, setPianoState]   = useState<PianoState>(() => store.getPianoState());
   const isRunningRef = useRef(false);
-  // 订阅 store 变化
+
+  // 订阅 store 事件变化
   useEffect(() => {
     return store.subscribe(evts => setEvents([...evts]));
+  }, [store]);
+
+  // 订阅 store mode 变化
+  useEffect(() => {
+    return store.subscribeMode(m => setModeState(m));
+  }, [store]);
+
+  // 订阅 store piano 变化
+  useEffect(() => {
+    return store.subscribePiano(state => setPianoState(state));
   }, [store]);
 
   // 暴露 setIsRunning / setIsRecording 给外部
@@ -237,8 +254,8 @@ export function App({ store, model, mode, setMode, callbacks }: AppProps) {
         />
       )}
 
-      {/* 主输入区 */}
-      {!showCmd && !showProvider && (
+      {/* 主输入区（钢琴演奏时隐藏） */}
+      {!showCmd && !showProvider && !pianoState.visible && (
         <InputArea
           mode={mode}
           isRunning={isRunning}
@@ -246,6 +263,15 @@ export function App({ store, model, mode, setMode, callbacks }: AppProps) {
           onSubmit={handleTextSubmit}
           onAbort={callbacks.onAbort}
           onSlash={handleSlash}
+        />
+      )}
+
+      {/* 钢琴 UI（演奏时显示，替代输入区） */}
+      {pianoState.visible && (
+        <Piano
+          activeNote={pianoState.activeNote}
+          songTitle={pianoState.songTitle}
+          progress={pianoState.progress}
         />
       )}
     </Box>

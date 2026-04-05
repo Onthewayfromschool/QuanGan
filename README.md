@@ -57,6 +57,7 @@
 | `run_shell` | 执行任意 shell 命令；内置网易云 ncm-cli 优先策略，播放/搜索音乐直接调用 ncm-cli，无需手动探索命令格式 |
 | `run_applescript` | 执行 AppleScript 脚本，自动化控制任意 macOS 应用（搜索歌曲、操作 UI 等） |
 | `browser_action` | Playwright 浏览器自动化（navigate / click / type / 获取页面文本等），登录态持久化保存，首次登录后永久复用 |
+| `play_piano` | 终端钢琴演奏：先搜索网络曲谱解析为音符序列，失败则 LLM 编曲；终端显示可视化钢琴键盘，琴键随旋律高亮并播放音调 |
 
 内置命令：`/help` `/history` `/tools` `/clear` `/plan` `/exec` `/voice` `/provider` `/exit`
 
@@ -250,6 +251,7 @@ skills/              # 自定义 Skill（dev-log-writer / developer-words-record
 - [x] `/provider` 命令：TUI 一键切换 Provider，配置即时持久化到 `.env`
 - [x] CLI UI 迁移至 Ink + Clack（React 组件化 TUI，`<Static>` 历史区 + 动态底部，输入框圆角边框）
 - [x] Coding Agent 联网搜索（Tavily API `web_search` + Jina Reader `read_url`，信息检索路由加固）
+- [x] 终端钢琴演奏（`play_piano` 工具，搜索曲谱 + LLM 编曲 fallback，Ink 可视化键盘 + ADSR 音频引擎）
 - [ ] 终端输出代码片段显示文件名 + 行号（便于快速定位和复制）
 - [ ] ReAct 推理过程可视化
 - [ ] 更多等你来提 Issue
@@ -265,6 +267,7 @@ skills/              # 自定义 Skill（dev-log-writer / developer-words-record
 - 百炼 CosyVoice（cosyvoice-v3.5-plus，WebSocket TTS 语音合成）
 - **Ink**（React-based 终端 UI，组件化渲染）+ **Clack**（交互式流程向导）
 - **Tavily API**（联网搜索，AI 生成摘要）+ **Jina Reader**（网页全文转 Markdown，零 Key）
+- **speaker**（Node.js PCM 音频播放，钢琴音符合成）
 - Node.js 内置 readline / child_process
 - sox（录音，需单独安装）
 

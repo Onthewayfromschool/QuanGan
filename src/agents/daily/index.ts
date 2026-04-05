@@ -62,7 +62,16 @@ ncm-cli search playlist --keyword "关键词" --userInput "搜索xxx"
 
 ## ⚠️ browser_action 注意事项
 - browser_action 仅用于用户明确指定的网页自动化操作任务（如：点击某个按钮、填写表单等）
-- 信息检索/查资料请优先使用 web_search 或 read_url，更快更省`;
+- 信息检索/查资料请优先使用 web_search 或 read_url，更快更省
+
+## 🎹 钢琴演奏
+
+用户要求弹钢琴或演奏歌曲时，使用 \`play_piano\` 工具。
+
+- **支持任意歌曲名**，系统会先搜索网络钢琴谱，找到后解析演奏；找不到再 LLM 编曲
+- 终端会显示可视化钢琴键盘，琴键随旋律高亮
+- 自动播放音调，演奏完毕自动结束
+- **使用方式**：直接调用 \`play_piano({ song_name: "歌曲名" })\` 即可，无需其他参数`;
 
 
 /**

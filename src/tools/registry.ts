@@ -30,6 +30,9 @@ import * as runShell       from './run-shell.js';
 import * as runApplescript from './run-applescript.js';
 import * as browser        from './browser.js';
 
+// ── 钢琴工具 ─────────────────────────────────────────────────────────────────
+import * as playPiano      from './piano/index.js';
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ToolEntry {
@@ -75,6 +78,9 @@ export function createGlobalToolRegistry(
   add(runShell.definition,       runShell.implementation,       false);
   add(runApplescript.definition, runApplescript.implementation, false);
   add(browser.definition,        browser.implementation,        false);
+
+  // ── 钢琴工具 ───────────────────────────────────────────────────────────────
+  add(playPiano.definition, playPiano.implementation, false);
 
   return registry;
 }

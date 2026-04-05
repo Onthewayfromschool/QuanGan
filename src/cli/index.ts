@@ -15,6 +15,8 @@ import { ToolDefinition } from '../tools/types.js';
 import { createCodingAgent } from '../agents/coding/index.js';
 import { createDailyAgent } from '../agents/daily/index.js';
 import { createGlobalToolRegistry } from '../tools/registry.js';
+import { initPianoTool } from '../tools/piano/index.js';
+import { implementation as webSearchImpl } from '../tools/web-search.js';
 import { loadSession, saveSession, clearSession } from './session-store.js';
 import { createMemoryTools, getCoreMemory, appendLifeMemory, createMemoryToolImpls, MEMORY_BASE_DIR } from '../memory/index.js';
 import { recordUntilSilence, cleanupAudioFile } from '../voice/recorder.js';
@@ -35,6 +37,13 @@ const CWD = process.cwd();
 // ─── Store（UI 桥接层）────────────────────────────────────────────────────────
 
 const store = new ChatStore();
+
+// 初始化钢琴工具（注入 store、client 和 web_search 依赖）
+const webSearchWrapper = async (query: string): Promise<string> => {
+  const result = await webSearchImpl({ query, max_results: 5 });
+  return result;
+};
+initPianoTool(store, client, webSearchWrapper);
 
 // ─── 记忆系统初始化 ──────────────────────────────────────────────────────────
 
@@ -139,11 +148,11 @@ const agent = new Agent({
 ## 技能与工作方式
 你内部有两个助手，可以通过工具调用完成不同类型的任务：
 - coding_agent：处理代码相关任务（读写文件、执行命令、代码搜索等），以及**所有联网信息检索**（web_search 搜索、read_url 读网页）
-- daily_agent：处理日常操作（打开应用、打开网址、执行系统命令、播放音乐等）
+- daily_agent：处理日常操作（打开应用、打开网址、执行系统命令、播放音乐、弹钢琴演奏歌曲等）
 
 路由原则（重要）：
 - 「查资料」「搜一下」「查询XXX」「找信息」「搜索XXX」等信息检索 → 一律交给 coding_agent
-- 「打开XXX」「播放音乐」「执行命令」「关闭XXX」等系统操作 → 交给 daily_agent
+- 「打开XXX」「播放音乐」「执行命令」「关闭XXX」「弹钢琴」「演奏歌曲」等系统操作 → 交给 daily_agent
 
 根据权哥的需求分析任务类型并调用合适的助手完成。
 如果是简单的聊天或问候，直接回答就好，无需调助手。
@@ -344,6 +353,7 @@ function handleCommand(cmd: string): void {
       break;
     case '/voice':
       currentMode = currentMode === 'voice' ? 'text' : 'voice';
+      store.setMode(currentMode);
       store.push({ type: 'system', content: currentMode === 'voice' ? '🎤 Voice 模式：按 Enter 开始录音，Agent 回复将自动朗读' : '⌨️  已切换回文字输入模式' });
       break;
     case '/provider':
@@ -393,7 +403,16 @@ async function processMessage(text: string): Promise<void> {
 
 // ─── 语音输入 ─────────────────────────────────────────────────────────────────
 
+let _isProcessingVoice = false;
+
 async function handleVoiceInput(): Promise<void> {
+  // 防重入：如果正在处理语音，忽略新的触发
+  if (_isProcessingVoice) {
+    console.log('[voice] 忽略重复触发');
+    return;
+  }
+  
+  _isProcessingVoice = true;
   stopSpeaking();
   setAppRecording(store, true);
 
@@ -403,6 +422,7 @@ async function handleVoiceInput(): Promise<void> {
   } catch (e: any) {
     setAppRecording(store, false);
     store.push({ type: 'error', content: `录音失败: ${e.message}` });
+    _isProcessingVoice = false;
     return;
   }
 
@@ -414,6 +434,7 @@ async function handleVoiceInput(): Promise<void> {
     store.push({ type: 'error', content: `ASR 失败: ${e.message}` });
     cleanupAudioFile(audioFile);
     setAppRecording(store, false);
+    _isProcessingVoice = false;
     return;
   } finally {
     cleanupAudioFile(audioFile);
@@ -422,11 +443,16 @@ async function handleVoiceInput(): Promise<void> {
 
   if (!text.trim()) {
     store.push({ type: 'error', content: '未识别到语音，请重试' });
+    _isProcessingVoice = false;
     return;
   }
 
   store.push({ type: 'voice-transcribed', text });
-  await processMessage(text);
+  try {
+    await processMessage(text);
+  } finally {
+    _isProcessingVoice = false;
+  }
 }
 
 // ─── App 回调 ─────────────────────────────────────────────────────────────────

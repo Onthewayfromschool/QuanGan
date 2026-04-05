@@ -1,4 +1,5 @@
-import { ChatEvent } from './types.js';
+import { ChatEvent, PianoState } from './types.js';
+import { AppMode } from './types.js';
 
 let _counter = 0;
 export function nextId(): string {
@@ -17,7 +18,11 @@ type Listener = (events: ChatEvent[]) => void;
  */
 export class ChatStore {
   private _events: ChatEvent[] = [];
+  private _mode: AppMode = 'text';
   private _listeners = new Set<Listener>();
+  private _modeListeners = new Set<(mode: AppMode) => void>();
+  private _pianoState: PianoState = { visible: false, activeNote: null, songTitle: '', progress: 0 };
+  private _pianoListeners = new Set<(state: PianoState) => void>();
 
   push(event: ChatEventInput): void {
     const full = { ...event, id: nextId() } as ChatEvent;
@@ -37,5 +42,35 @@ export class ChatStore {
   clear(): void {
     this._events = [];
     this._listeners.forEach(l => l(this._events));
+  }
+
+  // ── mode 管理 ─────────────────────────────────────────────────────
+  setMode(mode: AppMode): void {
+    this._mode = mode;
+    this._modeListeners.forEach(l => l(mode));
+  }
+
+  getMode(): AppMode {
+    return this._mode;
+  }
+
+  subscribeMode(fn: (mode: AppMode) => void): () => void {
+    this._modeListeners.add(fn);
+    return () => this._modeListeners.delete(fn);
+  }
+
+  // ── piano 管理 ─────────────────────────────────────────────────────
+  pushPiano(state: Partial<PianoState>): void {
+    this._pianoState = { ...this._pianoState, ...state };
+    this._pianoListeners.forEach(l => l(this._pianoState));
+  }
+
+  getPianoState(): PianoState {
+    return this._pianoState;
+  }
+
+  subscribePiano(fn: (state: PianoState) => void): () => void {
+    this._pianoListeners.add(fn);
+    return () => this._pianoListeners.delete(fn);
   }
 }

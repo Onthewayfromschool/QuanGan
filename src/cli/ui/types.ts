@@ -13,3 +13,11 @@ export type ChatEvent =
 
 /** 模式类型 */
 export type AppMode = 'text' | 'plan' | 'voice'
+
+/** 钢琴 UI 状态 */
+export interface PianoState {
+  visible: boolean;
+  activeNote: string | null;
+  songTitle: string;
+  progress: number;
+}
